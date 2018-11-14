@@ -87,51 +87,82 @@ func listenerLoop() (ret error) {
 				return err
 			}
 
-			announcement := &model.Announcement{}
+			announcement := &model.ServiceAnnouncement{}
 			if err := proto.Unmarshal(buffer, announcement); err != nil {
 				fmt.Println(err)
 				continue
 			}
 
 			remoteServicesMutex.RLock()
-			_, ok := remoteServices[announcement.Type]
+			_, ok := remoteServices[announcement.Uuid]
 			remoteServicesMutex.RUnlock()
 			if !ok {
 				remoteServicesMutex.Lock()
-				remoteServices[announcement.Type] = make(map[*Service]time.Time)
+				remoteServices[announcement.Uuid] = make(map[*Service]time.Time)
 				remoteServicesMutex.Unlock()
 			}
 
 			service := &Service{
-				Type: announcement.Type,
-				Host: uint64(announcement.Host),
-				Port: uint16(announcement.Port),
+				Provider: Provider{
+					Host: addr.IP.String(),
+					Port: uint16(announcement.Port),
+				},
 			}
 			remoteServicesMutex.Lock()
-			remoteServices[announcement.Type][service] = time.Now()
+			remoteServices[announcement.Uuid][service] = time.Now()
 			remoteServicesMutex.Unlock()
 
 			var once sync.Once
 			callbacksMutex.RLock()
 			defer once.Do(callbacksMutex.RUnlock)
 			for callback := range callbacks {
-				(*(*func(net.Addr, *model.Announcement))(callback))(net.Addr(addr), announcement)
+				(*(*func(net.Addr, *model.ServiceAnnouncement))(callback))(net.Addr(addr), announcement)
 			}
 			once.Do(callbacksMutex.RUnlock)
 		}
 	}
 }
 
-func RegisterCallback(fn func(net.Addr, *model.Announcement)) {
+func RegisterCallback(fn func(net.Addr, *model.ServiceAnnouncement)) {
 	callbacksMutex.Lock()
 	defer callbacksMutex.Unlock()
 
 	callbacks[unsafe.Pointer(&fn)] = nil
 }
 
-func UnregisterCallback(fn func(net.Addr, *model.Announcement)) {
+func UnregisterCallback(fn func(net.Addr, *model.ServiceAnnouncement)) {
 	callbacksMutex.Lock()
 	defer callbacksMutex.Unlock()
 
 	delete(callbacks, unsafe.Pointer(&fn))
+}
+
+func RemoteServices() map[string][]Provider {
+	remoteServicesMutex.RLock()
+	defer remoteServicesMutex.RUnlock()
+
+	m := make(map[string][]Provider)
+	for uuid, services := range remoteServices {
+		m[uuid] = make([]Provider, 0, len(services))
+		for service := range services {
+			m[uuid] = append(m[uuid], service.Provider)
+		}
+	}
+	return m
+}
+
+func GetProvidersForService(uuid string) []Provider {
+	remoteServicesMutex.RLock()
+	defer remoteServicesMutex.RUnlock()
+
+	services, ok := remoteServices[uuid]
+	if !ok {
+		return []Provider{}
+	}
+
+	providers := make([]Provider, 0, len(services))
+	for service := range services {
+		providers = append(providers, service.Provider)
+	}
+	return providers
 }

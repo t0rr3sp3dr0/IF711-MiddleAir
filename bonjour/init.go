@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
 	model "../proto"
@@ -39,37 +40,44 @@ var (
 			return addr
 		}(),
 	}[:1]
+	logger = log.New(os.Stderr, "[bonjour] ", log.LstdFlags)
 )
 
 func init() {
 	go func() {
 		for {
-			log.Println(ripperLoop())
+			logger.Println(ripperLoop())
 		}
 	}()
 	go func() {
 		for {
-			log.Println(listenerLoop())
+			logger.Println(listenerLoop())
 		}
 	}()
 	go func() {
 		for {
-			log.Println(broadcasterLoop())
+			logger.Println(broadcasterLoop())
 		}
 	}()
 
 	s := &Service{
-		Type: func() string {
-			hostname, _ := os.Hostname()
-			return fmt.Sprintf("helloWorld@%s", hostname)
-		}(),
-		Host: 0,
-		Port: 0,
-	}
-	RegisterCallback(func(addr net.Addr, announcement *model.Announcement) {
-		log.Println(addr, announcement)
+		UUID: func() string {
+			hostname, err := os.Hostname()
+			if err != nil {
+				return ""
+			}
 
-		if announcement.Type == s.Type {
+			return "HELO@" + hostname
+		}(),
+	}
+	RegisterCallback(func(addr net.Addr, announcement *model.ServiceAnnouncement) {
+		host := strings.Split(addr.String(), ":")[0]
+		if host != s.Provider.Host {
+			logger.Println(addr, announcement)
+		}
+
+		if announcement.Uuid == s.UUID {
+			s.Provider.Host = host
 			UnregisterService(s)
 		}
 	})

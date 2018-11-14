@@ -38,10 +38,9 @@ func broadcasterLoop() (ret error) {
 		registeredServicesMutex.RLock()
 		defer once.Do(registeredServicesMutex.RUnlock)
 		for service := range registeredServices {
-			announcement := &model.Announcement{
-				Type: service.Type,
-				Host: int64(service.Host),
-				Port: uint32(service.Port),
+			announcement := &model.ServiceAnnouncement{
+				Uuid: service.UUID,
+				Port: int32(service.Provider.Port),
 			}
 
 			message, err := proto.Marshal(announcement)

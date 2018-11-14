@@ -18,148 +18,65 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type Announcement_Status int32
-
-const (
-	Announcement_DOWN Announcement_Status = 0
-	Announcement_UP   Announcement_Status = 1
-)
-
-var Announcement_Status_name = map[int32]string{
-	0: "DOWN",
-	1: "UP",
-}
-var Announcement_Status_value = map[string]int32{
-	"DOWN": 0,
-	"UP":   1,
+type ServiceAnnouncement struct {
+	Uuid                 string   `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	Port                 int32    `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (x Announcement_Status) String() string {
-	return proto.EnumName(Announcement_Status_name, int32(x))
+func (m *ServiceAnnouncement) Reset()         { *m = ServiceAnnouncement{} }
+func (m *ServiceAnnouncement) String() string { return proto.CompactTextString(m) }
+func (*ServiceAnnouncement) ProtoMessage()    {}
+func (*ServiceAnnouncement) Descriptor() ([]byte, []int) {
+	return fileDescriptor_bonjour_30ca63403a5201d0, []int{0}
 }
-func (Announcement_Status) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor_bonjour_bee9dc0eb9ae4632, []int{0, 0}
+func (m *ServiceAnnouncement) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServiceAnnouncement.Unmarshal(m, b)
 }
-
-type Announcement struct {
-	Type                 string              `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	Host                 int64               `protobuf:"zigzag64,2,opt,name=host,proto3" json:"host,omitempty"`
-	Port                 uint32              `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
-	Status               Announcement_Status `protobuf:"varint,4,opt,name=status,proto3,enum=proto.Announcement_Status" json:"status,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
-	XXX_unrecognized     []byte              `json:"-"`
-	XXX_sizecache        int32               `json:"-"`
+func (m *ServiceAnnouncement) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServiceAnnouncement.Marshal(b, m, deterministic)
 }
-
-func (m *Announcement) Reset()         { *m = Announcement{} }
-func (m *Announcement) String() string { return proto.CompactTextString(m) }
-func (*Announcement) ProtoMessage()    {}
-func (*Announcement) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bonjour_bee9dc0eb9ae4632, []int{0}
+func (dst *ServiceAnnouncement) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceAnnouncement.Merge(dst, src)
 }
-func (m *Announcement) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Announcement.Unmarshal(m, b)
+func (m *ServiceAnnouncement) XXX_Size() int {
+	return xxx_messageInfo_ServiceAnnouncement.Size(m)
 }
-func (m *Announcement) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Announcement.Marshal(b, m, deterministic)
-}
-func (dst *Announcement) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Announcement.Merge(dst, src)
-}
-func (m *Announcement) XXX_Size() int {
-	return xxx_messageInfo_Announcement.Size(m)
-}
-func (m *Announcement) XXX_DiscardUnknown() {
-	xxx_messageInfo_Announcement.DiscardUnknown(m)
+func (m *ServiceAnnouncement) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServiceAnnouncement.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Announcement proto.InternalMessageInfo
+var xxx_messageInfo_ServiceAnnouncement proto.InternalMessageInfo
 
-func (m *Announcement) GetType() string {
+func (m *ServiceAnnouncement) GetUuid() string {
 	if m != nil {
-		return m.Type
+		return m.Uuid
 	}
 	return ""
 }
 
-func (m *Announcement) GetHost() int64 {
-	if m != nil {
-		return m.Host
-	}
-	return 0
-}
-
-func (m *Announcement) GetPort() uint32 {
+func (m *ServiceAnnouncement) GetPort() int32 {
 	if m != nil {
 		return m.Port
 	}
 	return 0
 }
 
-func (m *Announcement) GetStatus() Announcement_Status {
-	if m != nil {
-		return m.Status
-	}
-	return Announcement_DOWN
-}
-
-type Ping struct {
-	Type                 string   `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Ping) Reset()         { *m = Ping{} }
-func (m *Ping) String() string { return proto.CompactTextString(m) }
-func (*Ping) ProtoMessage()    {}
-func (*Ping) Descriptor() ([]byte, []int) {
-	return fileDescriptor_bonjour_bee9dc0eb9ae4632, []int{1}
-}
-func (m *Ping) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Ping.Unmarshal(m, b)
-}
-func (m *Ping) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Ping.Marshal(b, m, deterministic)
-}
-func (dst *Ping) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Ping.Merge(dst, src)
-}
-func (m *Ping) XXX_Size() int {
-	return xxx_messageInfo_Ping.Size(m)
-}
-func (m *Ping) XXX_DiscardUnknown() {
-	xxx_messageInfo_Ping.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Ping proto.InternalMessageInfo
-
-func (m *Ping) GetType() string {
-	if m != nil {
-		return m.Type
-	}
-	return ""
-}
-
 func init() {
-	proto.RegisterType((*Announcement)(nil), "proto.Announcement")
-	proto.RegisterType((*Ping)(nil), "proto.Ping")
-	proto.RegisterEnum("proto.Announcement_Status", Announcement_Status_name, Announcement_Status_value)
+	proto.RegisterType((*ServiceAnnouncement)(nil), "proto.ServiceAnnouncement")
 }
 
-func init() { proto.RegisterFile("bonjour.proto", fileDescriptor_bonjour_bee9dc0eb9ae4632) }
+func init() { proto.RegisterFile("bonjour.proto", fileDescriptor_bonjour_30ca63403a5201d0) }
 
-var fileDescriptor_bonjour_bee9dc0eb9ae4632 = []byte{
-	// 176 bytes of a gzipped FileDescriptorProto
+var fileDescriptor_bonjour_30ca63403a5201d0 = []byte{
+	// 102 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4d, 0xca, 0xcf, 0xcb,
-	0xca, 0x2f, 0x2d, 0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0x53, 0x4a, 0xb3, 0x18,
-	0xb9, 0x78, 0x1c, 0xf3, 0xf2, 0xf2, 0x4b, 0xf3, 0x92, 0x53, 0x73, 0x53, 0xf3, 0x4a, 0x84, 0x84,
-	0xb8, 0x58, 0x4a, 0x2a, 0x0b, 0x52, 0x25, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xc0, 0x6c, 0x90,
-	0x58, 0x46, 0x7e, 0x71, 0x89, 0x04, 0x93, 0x02, 0xa3, 0x86, 0x50, 0x10, 0x98, 0x0d, 0x12, 0x2b,
-	0xc8, 0x2f, 0x2a, 0x91, 0x60, 0x56, 0x60, 0xd4, 0xe0, 0x0d, 0x02, 0xb3, 0x85, 0x8c, 0xb8, 0xd8,
-	0x8a, 0x4b, 0x12, 0x4b, 0x4a, 0x8b, 0x25, 0x58, 0x14, 0x18, 0x35, 0xf8, 0x8c, 0xa4, 0x20, 0x76,
-	0xe9, 0x21, 0x5b, 0xa0, 0x17, 0x0c, 0x56, 0x11, 0x04, 0x55, 0xa9, 0x24, 0xc5, 0xc5, 0x06, 0x11,
-	0x11, 0xe2, 0xe0, 0x62, 0x71, 0xf1, 0x0f, 0xf7, 0x13, 0x60, 0x10, 0x62, 0xe3, 0x62, 0x0a, 0x0d,
-	0x10, 0x60, 0x54, 0x92, 0xe2, 0x62, 0x09, 0xc8, 0xcc, 0x4b, 0xc7, 0xe6, 0xa6, 0x24, 0x36, 0xb0,
-	0xd1, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff, 0xff, 0x88, 0xce, 0xdf, 0x0a, 0xd7, 0x00, 0x00, 0x00,
+	0xca, 0x2f, 0x2d, 0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0x53, 0x4a, 0xb6, 0x5c,
+	0xc2, 0xc1, 0xa9, 0x45, 0x65, 0x99, 0xc9, 0xa9, 0x8e, 0x79, 0x79, 0xf9, 0xa5, 0x79, 0xc9, 0xa9,
+	0xb9, 0xa9, 0x79, 0x25, 0x42, 0x42, 0x5c, 0x2c, 0xa5, 0xa5, 0x99, 0x29, 0x12, 0x8c, 0x0a, 0x8c,
+	0x1a, 0x9c, 0x41, 0x60, 0x36, 0x48, 0xac, 0x20, 0xbf, 0xa8, 0x44, 0x82, 0x49, 0x81, 0x51, 0x83,
+	0x35, 0x08, 0xcc, 0x4e, 0x62, 0x03, 0x9b, 0x62, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x94, 0x26,
+	0x06, 0xf8, 0x5d, 0x00, 0x00, 0x00,
 }
