@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package proto;
+
+message Announcement {
+    string type = 1;
+    sint64 host = 2;
+    uint32 port = 3;
+
+    enum Status {
+        DOWN = 0;
+        UP = 1;
+    }
+    Status status = 4;
+
+    bytes signature = 536870911;
+}
+
+message Ping {
+    string type = 1;
+    sint64 host = 2;
+    uint32 port = 3;
+}

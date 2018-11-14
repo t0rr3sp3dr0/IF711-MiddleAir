@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package proto;
+
+message Error {
+    uint64 code = 1;
+    string message = 2;
+}
+
+message ErrorResponse {
+    Error error = 536870911;
+}
+
+message SignedResponse {
+    bytes signature = 536870911;
+}
+
+message SelfDescribingMessage {
+    string type_name = 1;
+    bytes message_data = 2;
+    Error error = 536870911;
+}
