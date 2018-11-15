@@ -3,10 +3,18 @@ package server
 import (
 	"fmt"
 	"net"
+	"sync"
 
 	model "../proto"
 	"../util"
 	"github.com/golang/protobuf/proto"
+)
+
+var (
+	listeners                = make(map[uint16]net.Listener)
+	listenersMutex           = &sync.RWMutex{}
+	listenersWaitGroups      = make(map[uint16]*sync.WaitGroup)
+	listenersWaitGroupsMutex = &sync.RWMutex{}
 )
 
 type ServerRequestHandler struct {
@@ -21,19 +29,79 @@ func NewServerRequestHandler(options util.Options) (*ServerRequestHandler, error
 	e := &ServerRequestHandler{
 		options: options,
 	}
+
+	listenersMutex.Lock()
+	listener, ok := listeners[e.options.Port]
+	if !ok {
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", e.options.Port))
+		if err != nil {
+			return nil, err
+		}
+		listener = ln
+		listeners[e.options.Port] = listener
+
+		waitGroup := &sync.WaitGroup{}
+		waitGroup.Add(1)
+		defer waitGroup.Done()
+		listenersWaitGroupsMutex.Lock()
+		listenersWaitGroups[e.options.Port] = waitGroup
+		listenersWaitGroupsMutex.Unlock()
+		go func() {
+			waitGroup.Wait()
+
+			listenersMutex.Lock()
+			delete(listeners, e.options.Port)
+			listenersMutex.Unlock()
+
+			listenersWaitGroupsMutex.Lock()
+			delete(listenersWaitGroups, e.options.Port)
+			listenersWaitGroupsMutex.Unlock()
+
+			if err := e.listener.Close(); err != nil {
+				panic(err)
+			}
+		}()
+	}
+	listenersMutex.Unlock()
+	e.listener = listener
+
+	listenersWaitGroupsMutex.RLock()
+	listenersWaitGroups[e.options.Port].Add(1)
+	listenersWaitGroupsMutex.RUnlock()
+
 	return e, nil
 }
 
-func (e *ServerRequestHandler) Close() error {
-	switch e.options.Protocol {
-	case "udp":
-		return e.pktConn.Close()
+func (e *ServerRequestHandler) Accept() error {
+	if e.netConn.Conn != nil {
+		return fmt.Errorf("Already Accepted")
+	}
 
+	conn, err := e.listener.Accept()
+	if err != nil {
+		return err
+	}
+	e.netConn = util.WrapperConn{
+		Conn: conn,
+	}
+
+	return nil
+}
+
+func (e *ServerRequestHandler) Close() error {
+	if e.netConn.Conn == nil {
+		return fmt.Errorf("Not Accepted")
+	}
+
+	switch e.options.Protocol {
 	case "tcp":
 		if err := e.netConn.Close(); err != nil {
 			return err
 		}
-		return e.listener.Close()
+		listenersWaitGroupsMutex.RLock()
+		listenersWaitGroups[e.options.Port].Done()
+		listenersWaitGroupsMutex.RUnlock()
+		return nil
 
 	default:
 		return fmt.Errorf("Unknown Protocol")
@@ -41,72 +109,32 @@ func (e *ServerRequestHandler) Close() error {
 }
 
 func (e *ServerRequestHandler) Receive() ([]byte, error) {
-	switch e.options.Protocol {
-	case "udp":
-		return e.udpReceive()
+	if e.netConn.Conn == nil {
+		return nil, fmt.Errorf("Not Accepted")
+	}
 
+	switch e.options.Protocol {
 	case "tcp":
-		return e.tcpReceive()
+		return e.netConn.ReadData()
 
 	default:
 		return nil, fmt.Errorf("Unknown Protocol")
 	}
 }
 
-func (e *ServerRequestHandler) udpReceive() ([]byte, error) {
-	if e.pktConn.PacketConn == nil {
-		ln, err := net.ListenPacket("udp", fmt.Sprintf(":%d", e.options.Port))
-		if err != nil {
-			return nil, err
-		}
-		e.pktConn = util.WrapperPacketConn{ln}
-	}
-
-	bytes, addr, err := e.pktConn.ReadData()
-	e.address = addr
-
-	return bytes, err
-}
-
-func (e *ServerRequestHandler) tcpReceive() ([]byte, error) {
-	if e.netConn.Conn == nil {
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", e.options.Port))
-		if err != nil {
-			return nil, err
-		}
-		e.listener = ln
-
-		conn, err := e.listener.Accept()
-		if err != nil {
-			return nil, err
-		}
-		e.netConn = util.WrapperConn{conn}
-	}
-
-	return e.netConn.ReadData()
-}
-
 func (e *ServerRequestHandler) Send(message []byte) error {
-	switch e.options.Protocol {
-	case "udp":
-		return e.udpSend(message)
+	if e.netConn.Conn == nil {
+		return fmt.Errorf("Not Accepted")
+	}
 
+	switch e.options.Protocol {
 	case "tcp":
-		return e.tcpSend(message)
+		_, err := e.netConn.WriteData(message)
+		return err
 
 	default:
 		return fmt.Errorf("Unknown Protocol")
 	}
-}
-
-func (e *ServerRequestHandler) udpSend(message []byte) error {
-	_, err := e.pktConn.WriteData(e.address, message)
-	return err
-}
-
-func (e *ServerRequestHandler) tcpSend(message []byte) error {
-	_, err := e.netConn.WriteData(message)
-	return err
 }
 
 func (e *ServerRequestHandler) handleBadRequest(err error) {

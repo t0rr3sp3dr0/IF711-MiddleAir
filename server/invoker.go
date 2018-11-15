@@ -10,11 +10,13 @@ import (
 )
 
 type Invoker struct {
+	sp       ServerProxy
+	services []*bonjour.Service
 	mashaler *util.Mashaler
 	srh      *ServerRequestHandler
 }
 
-func NewInvoker(options util.Options) (*Invoker, error) {
+func NewInvoker(sp ServerProxy, options util.Options) (*Invoker, error) {
 	mashaler, err := util.NewMashaler()
 	if err != nil {
 		return nil, err
@@ -25,23 +27,45 @@ func NewInvoker(options util.Options) (*Invoker, error) {
 		return nil, err
 	}
 
+	registry := sp.Registry()
+	services := make([]*bonjour.Service, 0, len(registry))
+	for _, uuid := range registry {
+		s := &bonjour.Service{
+			UUID: uuid,
+			Provider: bonjour.Provider{
+				Port: options.Port,
+			},
+		}
+		bonjour.RegisterService(s)
+		services = append(services, s)
+	}
+
 	return &Invoker{
+		sp:       sp,
+		services: services,
 		mashaler: mashaler,
 		srh:      srh,
 	}, nil
 }
 
-func (e *Invoker) Loop(sp ServerProxy) error {
-	for _, uuid := range sp.Registry() {
-		s := &bonjour.Service{
-			UUID: uuid,
-			Provider: bonjour.Provider{
-				Port: e.srh.options.Port,
-			},
+func (e *Invoker) Accept() error {
+	return e.srh.Accept()
+}
+
+func (e *Invoker) Loop() error {
+	defer func() {
+		for _, service := range e.services {
+			bonjour.UnregisterService(service)
 		}
-		bonjour.RegisterService(s)
-		defer bonjour.UnregisterService(s)
-	}
+		if err := e.srh.Close(); err != nil {
+			log.Println(err)
+		}
+
+		e.sp = nil
+		e.services = nil
+		e.mashaler = nil
+		e.srh = nil
+	}()
 
 	for {
 		bytes, err := e.srh.Receive()
@@ -59,7 +83,7 @@ func (e *Invoker) Loop(sp ServerProxy) error {
 			continue
 		}
 
-		innerMessage, handler, err := sp.Demux(message.TypeName)
+		innerMessage, handler, err := e.sp.Demux(message.TypeName)
 		if err != nil {
 			e.srh.handleBadRequest(err)
 			continue
