@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"net"
 
+	"../crypto"
 	"../util"
 )
 
 type ClientRequestHandler struct {
 	options util.Options
-	netConn util.WrapperConn
+	netConn crypto.SecureConn
 }
 
 func NewClientRequestHandler(options util.Options) (*ClientRequestHandler, error) {
@@ -40,7 +41,11 @@ func (e *ClientRequestHandler) send(bytes []byte) error {
 		if err != nil {
 			return err
 		}
-		e.netConn = util.WrapperConn{conn}
+		secureConn, err := crypto.NewSecureConn(conn)
+		if err != nil {
+			return err
+		}
+		e.netConn = *secureConn
 	}
 
 	_, err := e.netConn.WriteData(bytes)

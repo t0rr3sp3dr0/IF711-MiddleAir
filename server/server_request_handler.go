@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 
+	"../crypto"
 	model "../proto"
 	"../util"
 	"github.com/golang/protobuf/proto"
@@ -20,7 +21,7 @@ var (
 type ServerRequestHandler struct {
 	options  util.Options
 	listener net.Listener
-	netConn  util.WrapperConn
+	netConn  crypto.SecureConn
 	pktConn  util.WrapperPacketConn
 	address  net.Addr
 }
@@ -81,9 +82,11 @@ func (e *ServerRequestHandler) Accept() error {
 	if err != nil {
 		return err
 	}
-	e.netConn = util.WrapperConn{
-		Conn: conn,
+	secureConn, err := crypto.NewSecureConn(conn)
+	if err != nil {
+		return err
 	}
+	e.netConn = *secureConn
 
 	return nil
 }
