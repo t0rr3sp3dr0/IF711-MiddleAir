@@ -22,8 +22,6 @@ type ServerRequestHandler struct {
 	options  util.Options
 	listener net.Listener
 	netConn  crypto.SecureConn
-	pktConn  util.WrapperPacketConn
-	address  net.Addr
 }
 
 func NewServerRequestHandler(options util.Options) (*ServerRequestHandler, error) {
