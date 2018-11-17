@@ -2,7 +2,6 @@ package bonjour
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -40,7 +39,6 @@ var (
 			return addr
 		}(),
 	}[:1]
-	logger = log.New(os.Stderr, "[bonjour] ", log.LstdFlags)
 )
 
 func init() {
@@ -70,9 +68,10 @@ func init() {
 			return "HELO@" + hostname
 		}(),
 	}
-	RegisterCallback(func(addr net.Addr, announcement *model.ServiceAnnouncement) {
+	c := func(addr net.Addr, announcement *model.ServiceAnnouncement) {
 		host := strings.Split(addr.String(), ":")[0]
-		if host != s.Provider.Host {
+		b := host == s.Provider.Host
+		if (b && loggingLevel&LogLocalhost != 0) || (!b && loggingLevel&LogOthers != 0) {
 			logger.Println(addr, announcement)
 		}
 
@@ -80,6 +79,7 @@ func init() {
 			s.Provider.Host = host
 			UnregisterService(s)
 		}
-	})
+	}
+	RegisterCallback(c)
 	RegisterService(s)
 }
