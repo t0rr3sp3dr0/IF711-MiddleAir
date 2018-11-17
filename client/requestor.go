@@ -30,6 +30,10 @@ func NewRequestor(options util.Options) (*Requestor, error) {
 	}, nil
 }
 
+func (e *Requestor) Close() error {
+	return e.crh.Close()
+}
+
 func (e *Requestor) Invoke(req proto.Message, res proto.Message) error {
 	data, err := util.SelfDescribingMessage(req)
 	if err != nil {

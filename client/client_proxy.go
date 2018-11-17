@@ -20,10 +20,6 @@ type ClientProxy struct {
 	requestor *Requestor
 }
 
-func (e *ClientProxy) Invoke(req proto.Message, res proto.Message) error {
-	return e.requestor.Invoke(req, res)
-}
-
 func NewClientProxy(options util.Options) (*ClientProxy, error) {
 	requestor, err := NewRequestor(options)
 	if err != nil {
@@ -33,6 +29,14 @@ func NewClientProxy(options util.Options) (*ClientProxy, error) {
 	return &ClientProxy{
 		requestor: requestor,
 	}, nil
+}
+
+func (e *ClientProxy) Close() error {
+	return e.requestor.Close()
+}
+
+func (e *ClientProxy) Invoke(req proto.Message, res proto.Message) error {
+	return e.requestor.Invoke(req, res)
 }
 
 type Options struct {
@@ -107,4 +111,17 @@ func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
 		}
 		return nil
 	}, nil
+}
+
+func ClosePersistentConns() (errs []error) {
+	for provider, proxy := range proxies {
+		if err := proxy.Close(); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		delete(proxies, provider)
+	}
+
+	return errs
 }
