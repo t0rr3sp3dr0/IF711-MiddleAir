@@ -64,8 +64,6 @@ func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
 	return func(req proto.Message, res proto.Message) error {
 		b := false
 		for _, provider := range providers {
-			log.Println(provider)
-
 			// TODO: tag matching
 
 			proxy, ok := func(provider *bonjour.Provider) (*ClientProxy, bool) {

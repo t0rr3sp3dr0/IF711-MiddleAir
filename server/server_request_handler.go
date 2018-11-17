@@ -140,7 +140,7 @@ func (e *ServerRequestHandler) Close() error {
 		return nil
 
 	default:
-		return fmt.Errorf("Unknown Protocol")
+		return util.ErrMethodNotAllowed
 	}
 }
 
@@ -154,7 +154,7 @@ func (e *ServerRequestHandler) Receive() ([]byte, error) {
 		return e.netConn.ReadData()
 
 	default:
-		return nil, fmt.Errorf("Unknown Protocol")
+		return nil, util.ErrMethodNotAllowed
 	}
 }
 
@@ -169,7 +169,7 @@ func (e *ServerRequestHandler) Send(message []byte) error {
 		return err
 
 	default:
-		return fmt.Errorf("Unknown Protocol")
+		return util.ErrMethodNotAllowed
 	}
 }
 

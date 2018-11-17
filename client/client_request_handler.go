@@ -18,7 +18,7 @@ func NewClientRequestHandler(options util.Options) (*ClientRequestHandler, error
 	case "udp":
 	case "tcp":
 	default:
-		return nil, fmt.Errorf("Unknown Protocol")
+		return nil, util.ErrMethodNotAllowed
 	}
 
 	conn, err := net.Dial(options.Protocol, fmt.Sprintf("%s:%d", options.Host, options.Port))
