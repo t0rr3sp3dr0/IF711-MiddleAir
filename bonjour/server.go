@@ -3,10 +3,13 @@ package bonjour
 import (
 	"fmt"
 	"net"
+	"os"
+	"runtime"
 	"sync"
 	"time"
 
 	model "../proto"
+	"../util"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -41,6 +44,7 @@ func broadcasterLoop() (ret error) {
 			announcement := &model.ServiceAnnouncement{
 				Uuid: service.UUID,
 				Port: int32(service.Provider.Port),
+				Tags: append(service.Tags[:], service.Metadata.OS, service.Metadata.Arch, service.Metadata.Host, service.Metadata.Lang),
 			}
 
 			message, err := proto.Marshal(announcement)
@@ -60,11 +64,39 @@ func broadcasterLoop() (ret error) {
 	}
 }
 
-func RegisterService(service *Service) {
+func RegisterService(service *Service) error {
+	if len(service.UUID) > 256 {
+		return util.ErrPayloadTooLarge
+	}
+	if len(service.Provider.Host) > 256 {
+		return util.ErrPayloadTooLarge
+	}
+	for _, tag := range service.Tags {
+		if len(tag) > 256 {
+			return util.ErrPayloadTooLarge
+		}
+	}
+
+	service.Metadata.OS = runtime.GOOS
+	service.Metadata.Arch = runtime.GOARCH
+	if hostname, err := os.Hostname(); err == nil {
+		service.Metadata.Host = hostname
+		if len(service.Metadata.Host) > 256 {
+			service.Metadata.Host = service.Metadata.Host[:256]
+		}
+	}
+	if language, ok := os.LookupEnv("LANG"); ok {
+		service.Metadata.Lang = language
+		if len(service.Metadata.Lang) > 256 {
+			service.Metadata.Lang = service.Metadata.Lang[:256]
+		}
+	}
+
 	registeredServicesMutex.Lock()
 	defer registeredServicesMutex.Unlock()
 
 	registeredServices[service] = nil
+	return nil
 }
 
 func UnregisterService(service *Service) {

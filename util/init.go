@@ -14,6 +14,7 @@ var (
 	ErrForbidden          = errors.New("403 - Forbidden")
 	ErrNotFound           = errors.New("404 - Not Found")
 	ErrMethodNotAllowed   = errors.New("405 - Method Not Allowed")
+	ErrPayloadTooLarge    = errors.New("413 - Payload Too Large")
 	ErrExpectationFailed  = errors.New("417 - Expectation Failed")
 	ErrServiceUnavailable = errors.New("503 - Service Unavailable")
 )

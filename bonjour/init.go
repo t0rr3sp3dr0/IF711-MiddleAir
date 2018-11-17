@@ -3,7 +3,6 @@ package bonjour
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"time"
 
@@ -59,14 +58,7 @@ func init() {
 	}()
 
 	s := &Service{
-		UUID: func() string {
-			hostname, err := os.Hostname()
-			if err != nil {
-				return ""
-			}
-
-			return "HELO@" + hostname
-		}(),
+		UUID: "HELO",
 	}
 	c := func(addr net.Addr, announcement *model.ServiceAnnouncement) {
 		host := strings.Split(addr.String(), ":")[0]

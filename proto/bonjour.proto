@@ -5,4 +5,5 @@ package proto;
 message ServiceAnnouncement {
     string uuid = 1;
     int32 port = 2;
+    repeated string tags = 3;
 }

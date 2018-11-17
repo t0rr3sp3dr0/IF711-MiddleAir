@@ -19,6 +19,6 @@ var (
 	loggingLevel = LogDisabled
 )
 
-func SetLoggingLevel(loggingLevel LoggingLevel) {
-	loggingLevel = loggingLevel
+func SetLoggingLevel(ll LoggingLevel) {
+	loggingLevel = ll
 }

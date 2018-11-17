@@ -107,7 +107,14 @@ func listenerLoop() (ret error) {
 					Host: addr.IP.String(),
 					Port: uint16(announcement.Port),
 				},
+				Metadata: Metadata{
+					OS:   announcement.Tags[16],
+					Arch: announcement.Tags[17],
+					Host: announcement.Tags[18],
+					Lang: announcement.Tags[19],
+				},
 			}
+			copy(service.Tags[:], announcement.Tags)
 			remoteServicesMutex.Lock()
 			remoteServices[announcement.Uuid][service] = time.Now()
 			remoteServicesMutex.Unlock()
