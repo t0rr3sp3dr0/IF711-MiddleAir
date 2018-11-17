@@ -48,8 +48,8 @@ func NewInvoker(sp ServerProxy, options util.Options) (*Invoker, error) {
 	}, nil
 }
 
-func (e *Invoker) Accept() error {
-	return e.srh.Accept()
+func (e *Invoker) Accept(credentials []byte) error {
+	return e.srh.Accept(credentials)
 }
 
 func (e *Invoker) Loop() error {

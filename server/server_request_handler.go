@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"sync"
@@ -71,7 +72,11 @@ func NewServerRequestHandler(options util.Options) (*ServerRequestHandler, error
 	return e, nil
 }
 
-func (e *ServerRequestHandler) Accept() error {
+func (e *ServerRequestHandler) Accept(credentials []byte) error {
+	if credentials == nil {
+		credentials = []byte{}
+	}
+
 	if e.netConn.Conn != nil {
 		return fmt.Errorf("Already Accepted")
 	}
@@ -84,9 +89,39 @@ func (e *ServerRequestHandler) Accept() error {
 	if err != nil {
 		return err
 	}
-	e.netConn = *secureConn
 
-	return nil
+	data, err := secureConn.ReadData()
+	if err != nil {
+		defer secureConn.Close()
+		return err
+	}
+
+	res := []byte{200}
+	if !bytes.Equal(data, credentials) {
+		res[0] = 401 % 256
+	}
+
+	if _, err := secureConn.WriteData(res); err != nil {
+		defer secureConn.Close()
+		return err
+	}
+
+	if res[0] == 200 {
+		e.netConn = *secureConn
+		return nil
+	}
+
+	defer secureConn.Close()
+	switch res[0] {
+	case 401 % 256:
+		return util.ErrUnauthorized
+
+	case 403 % 256:
+		return util.ErrForbidden
+
+	default:
+		return util.ErrUnknown
+	}
 }
 
 func (e *ServerRequestHandler) Close() error {

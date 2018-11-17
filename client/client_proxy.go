@@ -1,7 +1,6 @@
 package client
 
 import (
-	"errors"
 	"log"
 
 	"../bonjour"
@@ -10,10 +9,7 @@ import (
 )
 
 var (
-	proxies               = make(map[bonjour.Provider]*ClientProxy)
-	ErrNotFound           = errors.New("404 - Not Found")
-	ErrExpectationFailed  = errors.New("417 - Expectation Failed")
-	ErrServiceUnavailable = errors.New("503 - Service Unavailable")
+	proxies = make(map[bonjour.Provider]*ClientProxy)
 )
 
 type ClientProxy struct {
@@ -44,6 +40,7 @@ type Options struct {
 	StrictMatch bool
 	Broadcast   bool
 	Persistent  bool
+	Credentials []byte
 }
 
 type InvokeFn func(req proto.Message, res proto.Message) error
@@ -55,15 +52,20 @@ func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
 	if options.Tags == nil {
 		options.Tags = []string{}
 	}
+	if options.Credentials == nil {
+		options.Credentials = []byte{}
+	}
 
 	providers := bonjour.GetProvidersForService(uuid)
 	if len(providers) == 0 {
-		return nil, ErrNotFound
+		return nil, util.ErrNotFound
 	}
 
 	return func(req proto.Message, res proto.Message) error {
 		b := false
 		for _, provider := range providers {
+			log.Println(provider)
+
 			// TODO: tag matching
 
 			proxy, ok := func(provider *bonjour.Provider) (*ClientProxy, bool) {
@@ -76,9 +78,10 @@ func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
 			}(&provider)
 			if !ok {
 				clientProxy, err := NewClientProxy(util.Options{
-					Host:     provider.Host,
-					Port:     provider.Port,
-					Protocol: "tcp",
+					Host:        provider.Host,
+					Port:        provider.Port,
+					Protocol:    "tcp",
+					Credentials: options.Credentials,
 				})
 				if err != nil {
 					log.Println(err)
@@ -107,7 +110,7 @@ func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
 		}
 
 		if !b {
-			return ErrServiceUnavailable
+			return util.ErrServiceUnavailable
 		}
 		return nil
 	}, nil

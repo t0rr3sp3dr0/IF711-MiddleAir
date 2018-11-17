@@ -45,6 +45,32 @@ func (e *ClientRequestHandler) send(bytes []byte) error {
 		if err != nil {
 			return err
 		}
+
+		if _, err := secureConn.WriteData(e.options.Credentials); err != nil {
+			defer secureConn.Close()
+			return err
+		}
+
+		data, err := secureConn.ReadData()
+		if err != nil {
+			defer secureConn.Close()
+			return err
+		}
+
+		if data[0] != 200 {
+			defer secureConn.Close()
+			switch data[0] {
+			case 401 % 256:
+				return util.ErrUnauthorized
+
+			case 403 % 256:
+				return util.ErrForbidden
+
+			default:
+				return util.ErrUnknown
+			}
+		}
+
 		e.netConn = *secureConn
 	}
 
