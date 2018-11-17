@@ -21,9 +21,45 @@ func NewClientRequestHandler(options util.Options) (*ClientRequestHandler, error
 		return nil, fmt.Errorf("Unknown Protocol")
 	}
 
+	conn, err := net.Dial(options.Protocol, fmt.Sprintf("%s:%d", options.Host, options.Port))
+	if err != nil {
+		return nil, err
+	}
+	secureConn, err := crypto.NewSecureConn(conn)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := secureConn.WriteData(options.Credentials); err != nil {
+		defer secureConn.Close()
+		return nil, err
+	}
+
+	data, err := secureConn.ReadData()
+	if err != nil {
+		defer secureConn.Close()
+		return nil, err
+	}
+
+	if data[0] != 200 {
+		defer secureConn.Close()
+		switch data[0] {
+		case 401 % 256:
+			return nil, util.ErrUnauthorized
+
+		case 403 % 256:
+			return nil, util.ErrForbidden
+
+		default:
+			return nil, util.ErrUnknown
+		}
+	}
+
 	e := &ClientRequestHandler{
 		options: options,
+		netConn: *secureConn,
 	}
+
 	return e, nil
 }
 
@@ -32,56 +68,10 @@ func (e *ClientRequestHandler) Close() error {
 }
 
 func (e *ClientRequestHandler) Send(message []byte) error {
-	return e.send(message)
-}
-
-func (e *ClientRequestHandler) send(bytes []byte) error {
-	if e.netConn.Conn == nil {
-		conn, err := net.Dial(e.options.Protocol, fmt.Sprintf("%s:%d", e.options.Host, e.options.Port))
-		if err != nil {
-			return err
-		}
-		secureConn, err := crypto.NewSecureConn(conn)
-		if err != nil {
-			return err
-		}
-
-		if _, err := secureConn.WriteData(e.options.Credentials); err != nil {
-			defer secureConn.Close()
-			return err
-		}
-
-		data, err := secureConn.ReadData()
-		if err != nil {
-			defer secureConn.Close()
-			return err
-		}
-
-		if data[0] != 200 {
-			defer secureConn.Close()
-			switch data[0] {
-			case 401 % 256:
-				return util.ErrUnauthorized
-
-			case 403 % 256:
-				return util.ErrForbidden
-
-			default:
-				return util.ErrUnknown
-			}
-		}
-
-		e.netConn = *secureConn
-	}
-
-	_, err := e.netConn.WriteData(bytes)
+	_, err := e.netConn.WriteData(message)
 	return err
 }
 
 func (e *ClientRequestHandler) Receive() ([]byte, error) {
-	return e.receive()
-}
-
-func (e *ClientRequestHandler) receive() ([]byte, error) {
 	return e.netConn.ReadData()
 }
