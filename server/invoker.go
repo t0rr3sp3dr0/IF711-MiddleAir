@@ -30,14 +30,16 @@ func NewInvoker(sp ServerProxy, options util.Options) (*Invoker, error) {
 	}
 
 	registry := sp.Registry()
+	tags := sp.Tags()
 	services := make([]*bonjour.Service, 0, len(registry))
 	for _, service := range registry {
 		s := &bonjour.Service{
-			UUID: service.UUID,
+			UUID: service.Interface.String(),
 			Provider: bonjour.Provider{
 				Port: options.Port,
 			},
 		}
+		copy(s.Tags[:], tags[:])
 		bonjour.RegisterService(s)
 		services = append(services, s)
 	}
@@ -88,9 +90,9 @@ func (e *Invoker) Loop() error {
 		var service *Service
 		var innerMessage proto.Message
 		for _, s := range e.sp.Registry() {
-			if message.TypeName == s.InType.String() {
-				b := s.InType.Kind() == reflect.Ptr
-				t := s.InType
+			if message.TypeName == s.Interface.String() {
+				b := s.Interface.Kind() == reflect.Ptr
+				t := s.Interface
 				if b {
 					t = t.Elem()
 				}

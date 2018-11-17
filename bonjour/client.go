@@ -108,10 +108,10 @@ func listenerLoop() (ret error) {
 					Port: uint16(announcement.Port),
 				},
 				Metadata: Metadata{
-					OS:   announcement.Tags[16],
-					Arch: announcement.Tags[17],
-					Host: announcement.Tags[18],
-					Lang: announcement.Tags[19],
+					OS:   announcement.Tags[12],
+					Arch: announcement.Tags[13],
+					Host: announcement.Tags[14],
+					Lang: announcement.Tags[15],
 				},
 			}
 			copy(service.Tags[:], announcement.Tags)
@@ -144,32 +144,32 @@ func UnregisterCallback(fn func(net.Addr, *model.ServiceAnnouncement)) {
 	delete(callbacks, unsafe.Pointer(&fn))
 }
 
-func RemoteServices() map[string][]Provider {
+func RemoteServices() map[string][]Service {
 	remoteServicesMutex.RLock()
 	defer remoteServicesMutex.RUnlock()
 
-	m := make(map[string][]Provider)
+	m := make(map[string][]Service)
 	for uuid, services := range remoteServices {
-		m[uuid] = make([]Provider, 0, len(services))
+		m[uuid] = make([]Service, 0, len(services))
 		for service := range services {
-			m[uuid] = append(m[uuid], service.Provider)
+			m[uuid] = append(m[uuid], service)
 		}
 	}
 	return m
 }
 
-func GetProvidersForService(uuid string) []Provider {
+func InstancesOfService(uuid string) []Service {
 	remoteServicesMutex.RLock()
 	defer remoteServicesMutex.RUnlock()
 
 	services, ok := remoteServices[uuid]
 	if !ok {
-		return []Provider{}
+		return []Service{}
 	}
 
-	providers := make([]Provider, 0, len(services))
+	instances := make([]Service, 0, len(services))
 	for service := range services {
-		providers = append(providers, service.Provider)
+		instances = append(instances, service)
 	}
-	return providers
+	return instances
 }

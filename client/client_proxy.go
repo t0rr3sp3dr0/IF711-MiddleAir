@@ -2,6 +2,7 @@ package client
 
 import (
 	"log"
+	"reflect"
 
 	"../bonjour"
 	"../util"
@@ -43,9 +44,7 @@ type Options struct {
 	Credentials []byte
 }
 
-type InvokeFn func(req proto.Message, res proto.Message) error
-
-func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
+func Invoke(req proto.Message, res proto.Message, options *Options) error {
 	if options == nil {
 		options = &Options{}
 	}
@@ -56,62 +55,76 @@ func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
 		options.Credentials = []byte{}
 	}
 
-	providers := bonjour.GetProvidersForService(uuid)
-	if len(providers) == 0 {
-		return nil, util.ErrNotFound
+	instances := bonjour.InstancesOfService(reflect.TypeOf(req).String())
+	if len(instances) == 0 {
+		return util.ErrNotFound
 	}
 
-	return func(req proto.Message, res proto.Message) error {
-		b := false
-		for _, provider := range providers {
-			// TODO: tag matching
-
-			proxy, ok := func(provider *bonjour.Provider) (*ClientProxy, bool) {
-				if !options.Persistent {
-					return nil, false
+	b := false
+	for _, instance := range instances {
+		if len(options.Tags) > 0 {
+			matches := 0
+		loop:
+			for _, localTag := range options.Tags {
+				for _, remoteTag := range instance.Tags {
+					if localTag == remoteTag {
+						matches++
+						if !options.StrictMatch {
+							break loop
+						}
+					}
 				}
+			}
+			if matches == 0 || (options.StrictMatch && matches < len(options.Tags)) {
+				continue
+			}
+		}
 
-				proxy, ok := proxies[*provider]
-				return proxy, ok
-			}(&provider)
-			if !ok {
-				clientProxy, err := NewClientProxy(util.Options{
-					Host:        provider.Host,
-					Port:        provider.Port,
-					Protocol:    "tcp",
-					Credentials: options.Credentials,
-				})
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-
-				if options.Persistent {
-					proxies[provider] = clientProxy
-				}
-
-				proxy = clientProxy
+		proxy, ok := func(provider *bonjour.Provider) (*ClientProxy, bool) {
+			if !options.Persistent {
+				return nil, false
 			}
 
-			if err := proxy.Invoke(req, res); err != nil {
+			proxy, ok := proxies[*provider]
+			return proxy, ok
+		}(&instance.Provider)
+		if !ok {
+			clientProxy, err := NewClientProxy(util.Options{
+				Host:        instance.Provider.Host,
+				Port:        instance.Provider.Port,
+				Protocol:    "tcp",
+				Credentials: options.Credentials,
+			})
+			if err != nil {
 				log.Println(err)
 				continue
 			}
-			if !options.Persistent {
-				proxy.requestor.crh.Close()
+
+			if options.Persistent {
+				proxies[instance.Provider] = clientProxy
 			}
 
-			if !options.Broadcast {
-				return nil
-			}
-			b = true
+			proxy = clientProxy
 		}
 
-		if !b {
-			return util.ErrServiceUnavailable
+		if err := proxy.Invoke(req, res); err != nil {
+			log.Println(err)
+			continue
 		}
-		return nil
-	}, nil
+		if !options.Persistent {
+			proxy.requestor.crh.Close()
+		}
+
+		if !options.Broadcast {
+			return nil
+		}
+		b = true
+	}
+
+	if !b {
+		return util.ErrServiceUnavailable
+	}
+	return nil
 }
 
 func ClosePersistentConns() (errs []error) {

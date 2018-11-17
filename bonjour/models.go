@@ -3,7 +3,7 @@ package bonjour
 type Service struct {
 	UUID     string
 	Provider Provider
-	Tags     [16]string
+	Tags     [12]string
 	Metadata Metadata
 }
 
