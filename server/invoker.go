@@ -3,10 +3,12 @@ package server
 import (
 	"io"
 	"log"
+	"reflect"
 
 	"../bonjour"
 	model "../proto"
 	"../util"
+	"github.com/golang/protobuf/proto"
 )
 
 type Invoker struct {
@@ -29,9 +31,9 @@ func NewInvoker(sp ServerProxy, options util.Options) (*Invoker, error) {
 
 	registry := sp.Registry()
 	services := make([]*bonjour.Service, 0, len(registry))
-	for _, uuid := range registry {
+	for _, service := range registry {
 		s := &bonjour.Service{
-			UUID: uuid,
+			UUID: service.UUID,
 			Provider: bonjour.Provider{
 				Port: options.Port,
 			},
@@ -83,19 +85,37 @@ func (e *Invoker) Loop() error {
 			continue
 		}
 
-		innerMessage, handler, err := e.sp.Demux(message.TypeName)
-		if err != nil {
-			e.srh.handleBadRequest(err)
-			continue
+		var service *Service
+		var innerMessage proto.Message
+		for _, s := range e.sp.Registry() {
+			if message.TypeName == s.InType.String() {
+				b := s.InType.Kind() == reflect.Ptr
+				t := s.InType
+				if b {
+					t = t.Elem()
+				}
+				v := reflect.Indirect(reflect.New(t))
+				if b {
+					v = v.Addr()
+				}
+				m := v.Interface().(proto.Message)
+
+				service = s
+				innerMessage = m
+				break
+			}
+		}
+		if service == nil {
+			return util.ErrNotFound
 		}
 
 		if err := e.mashaler.Unmarshal(message.MessageData, innerMessage); err != nil {
 			e.srh.handleBadRequest(err)
 			continue
 		}
-		log.Println(message, "\n", innerMessage)
+		log.Println(message, "\t", innerMessage)
 
-		response, err := handler(innerMessage)
+		response, err := service.Handle(innerMessage)
 		if err != nil {
 			e.srh.handleInternalServerError(err)
 			continue
