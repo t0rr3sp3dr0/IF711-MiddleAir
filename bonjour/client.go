@@ -14,7 +14,7 @@ import (
 var (
 	callbacks           = make(map[unsafe.Pointer]*struct{})
 	callbacksMutex      = &sync.RWMutex{}
-	remoteServices      = make(map[string]map[*Service]time.Time)
+	remoteServices      = make(map[string]map[Service]time.Time)
 	remoteServicesMutex = &sync.RWMutex{}
 )
 
@@ -98,11 +98,11 @@ func listenerLoop() (ret error) {
 			remoteServicesMutex.RUnlock()
 			if !ok {
 				remoteServicesMutex.Lock()
-				remoteServices[announcement.Uuid] = make(map[*Service]time.Time)
+				remoteServices[announcement.Uuid] = make(map[Service]time.Time)
 				remoteServicesMutex.Unlock()
 			}
 
-			service := &Service{
+			service := Service{
 				Provider: Provider{
 					Host: addr.IP.String(),
 					Port: uint16(announcement.Port),
