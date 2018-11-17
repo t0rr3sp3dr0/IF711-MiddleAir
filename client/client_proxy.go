@@ -12,11 +12,16 @@ import (
 var (
 	proxies               = make(map[bonjour.Provider]*ClientProxy)
 	ErrNotFound           = errors.New("404 - Not Found")
+	ErrExpectationFailed  = errors.New("417 - Expectation Failed")
 	ErrServiceUnavailable = errors.New("503 - Service Unavailable")
 )
 
 type ClientProxy struct {
 	requestor *Requestor
+}
+
+func (e *ClientProxy) Invoke(req proto.Message, res proto.Message) error {
+	return e.requestor.Invoke(req, res)
 }
 
 func NewClientProxy(options util.Options) (*ClientProxy, error) {
@@ -30,120 +35,23 @@ func NewClientProxy(options util.Options) (*ClientProxy, error) {
 	}, nil
 }
 
-func (e *ClientProxy) Invoke(req proto.Message, res proto.Message) error {
-	return e.requestor.Invoke(req, res)
+type Options struct {
+	Tags        []string
+	StrictMatch bool
+	Broadcast   bool
+	Persistent  bool
 }
 
-func GetServiceInvoker(uuid string) (func(req proto.Message, res proto.Message) error, error) {
-	providers := bonjour.GetProvidersForService(uuid)
-	if len(providers) == 0 {
-		return nil, ErrNotFound
+type InvokeFn func(req proto.Message, res proto.Message) error
+
+func GetServiceInvokeFn(uuid string, options *Options) (InvokeFn, error) {
+	if options == nil {
+		options = &Options{}
+	}
+	if options.Tags == nil {
+		options.Tags = []string{}
 	}
 
-	return func(req proto.Message, res proto.Message) error {
-		for _, provider := range providers {
-			proxy, ok := proxies[provider]
-			if !ok {
-				clientProxy, err := NewClientProxy(util.Options{
-					Host:     provider.Host,
-					Port:     provider.Port,
-					Protocol: "tcp",
-				})
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-
-				proxies[provider] = clientProxy
-				proxy = clientProxy
-			}
-
-			if err := proxy.Invoke(req, res); err != nil {
-				log.Println(err)
-				continue
-			}
-			return nil
-		}
-
-		return ErrServiceUnavailable
-	}, nil
-}
-
-func GetServiceInvokerWithAllTags(uuid string, tags []string) (func(req proto.Message, res proto.Message) error, error) {
-	providers := bonjour.GetProvidersForService(uuid)
-	if len(providers) == 0 {
-		return nil, ErrNotFound
-	}
-
-	return func(req proto.Message, res proto.Message) error {
-		for _, provider := range providers {
-			// TODO: continue if provider has not all tags
-
-			proxy, ok := proxies[provider]
-			if !ok {
-				clientProxy, err := NewClientProxy(util.Options{
-					Host:     provider.Host,
-					Port:     provider.Port,
-					Protocol: "tcp",
-				})
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-
-				proxies[provider] = clientProxy
-				proxy = clientProxy
-			}
-
-			if err := proxy.Invoke(req, res); err != nil {
-				log.Println(err)
-				continue
-			}
-			return nil
-		}
-
-		return ErrServiceUnavailable
-	}, nil
-}
-
-func GetServiceInvokerWithAnyTags(uuid string, tags []string) (func(req proto.Message, res proto.Message) error, error) {
-	providers := bonjour.GetProvidersForService(uuid)
-	if len(providers) == 0 {
-		return nil, ErrNotFound
-	}
-
-	return func(req proto.Message, res proto.Message) error {
-		for _, provider := range providers {
-			// TODO: continue if provider has not any tags
-
-			proxy, ok := proxies[provider]
-			if !ok {
-				clientProxy, err := NewClientProxy(util.Options{
-					Host:     provider.Host,
-					Port:     provider.Port,
-					Protocol: "tcp",
-				})
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-
-				proxies[provider] = clientProxy
-				proxy = clientProxy
-			}
-
-			if err := proxy.Invoke(req, res); err != nil {
-				log.Println(err)
-				continue
-			}
-			return nil
-		}
-
-		return ErrServiceUnavailable
-	}, nil
-}
-
-func GetServiceBroadcaster(uuid string) (func(req proto.Message, res proto.Message) error, error) {
 	providers := bonjour.GetProvidersForService(uuid)
 	if len(providers) == 0 {
 		return nil, ErrNotFound
@@ -152,7 +60,16 @@ func GetServiceBroadcaster(uuid string) (func(req proto.Message, res proto.Messa
 	return func(req proto.Message, res proto.Message) error {
 		b := false
 		for _, provider := range providers {
-			proxy, ok := proxies[provider]
+			// TODO: tag matching
+
+			proxy, ok := func(provider *bonjour.Provider) (*ClientProxy, bool) {
+				if !options.Persistent {
+					return nil, false
+				}
+
+				proxy, ok := proxies[*provider]
+				return proxy, ok
+			}(&provider)
 			if !ok {
 				clientProxy, err := NewClientProxy(util.Options{
 					Host:     provider.Host,
@@ -164,48 +81,10 @@ func GetServiceBroadcaster(uuid string) (func(req proto.Message, res proto.Messa
 					continue
 				}
 
-				proxies[provider] = clientProxy
-				proxy = clientProxy
-			}
-
-			if err := proxy.Invoke(req, res); err != nil {
-				log.Println(err)
-				continue
-			}
-			b = true
-		}
-
-		if !b {
-			return ErrServiceUnavailable
-		}
-		return nil
-	}, nil
-}
-
-func GetServiceBroadcasterWithAllTags(uuid string, tags []string) (func(req proto.Message, res proto.Message) error, error) {
-	providers := bonjour.GetProvidersForService(uuid)
-	if len(providers) == 0 {
-		return nil, ErrNotFound
-	}
-
-	return func(req proto.Message, res proto.Message) error {
-		b := false
-		for _, provider := range providers {
-			// TODO: continue if provider has not all tags
-
-			proxy, ok := proxies[provider]
-			if !ok {
-				clientProxy, err := NewClientProxy(util.Options{
-					Host:     provider.Host,
-					Port:     provider.Port,
-					Protocol: "tcp",
-				})
-				if err != nil {
-					log.Println(err)
-					continue
+				if options.Persistent {
+					proxies[provider] = clientProxy
 				}
 
-				proxies[provider] = clientProxy
 				proxy = clientProxy
 			}
 
@@ -213,46 +92,12 @@ func GetServiceBroadcasterWithAllTags(uuid string, tags []string) (func(req prot
 				log.Println(err)
 				continue
 			}
-			b = true
-		}
-
-		if !b {
-			return ErrServiceUnavailable
-		}
-		return nil
-	}, nil
-}
-
-func GetServiceBroadcasterWithAnyTags(uuid string, tags []string) (func(req proto.Message, res proto.Message) error, error) {
-	providers := bonjour.GetProvidersForService(uuid)
-	if len(providers) == 0 {
-		return nil, ErrNotFound
-	}
-
-	return func(req proto.Message, res proto.Message) error {
-		b := false
-		for _, provider := range providers {
-			// TODO: continue if provider has not any tags
-
-			proxy, ok := proxies[provider]
-			if !ok {
-				clientProxy, err := NewClientProxy(util.Options{
-					Host:     provider.Host,
-					Port:     provider.Port,
-					Protocol: "tcp",
-				})
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-
-				proxies[provider] = clientProxy
-				proxy = clientProxy
+			if !options.Persistent {
+				proxy.requestor.crh.Close()
 			}
 
-			if err := proxy.Invoke(req, res); err != nil {
-				log.Println(err)
-				continue
+			if !options.Broadcast {
+				return nil
 			}
 			b = true
 		}
