@@ -1,9 +1,10 @@
 package main
 
 import (
-	_ "./bonjour"
+	"./bonjour"
 )
 
 func main() {
+	bonjour.SetLoggingLevel(bonjour.LogEveryone)
 	<-make(chan struct{})
 }
