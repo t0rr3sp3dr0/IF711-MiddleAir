@@ -28,7 +28,7 @@ type SecureConn struct {
 	sharedKey       []byte
 }
 
-func NewSecureConn(conn net.Conn) (_ *SecureConn, ret error) {
+func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 	e := &SecureConn{
 		Conn: conn,
 	}
