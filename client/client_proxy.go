@@ -3,6 +3,7 @@ package client
 import (
 	"log"
 	"reflect"
+	"sync"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/t0rr3sp3dr0/middleair/bonjour"
@@ -10,7 +11,8 @@ import (
 )
 
 var (
-	proxies = make(map[bonjour.Provider]*ClientProxy)
+	proxies      = make(map[bonjour.Provider]*ClientProxy)
+	proxiesMutex = &sync.RWMutex{}
 )
 
 type ClientProxy struct {
@@ -91,7 +93,10 @@ func Invoke(req proto.Message, res proto.Message, options *Options) error {
 				return nil, false
 			}
 
+			proxiesMutex.RLock()
 			proxy, ok := proxies[*provider]
+			proxiesMutex.RUnlock()
+
 			return proxy, ok
 		}(&instance.Provider)
 		if !ok {
@@ -107,7 +112,9 @@ func Invoke(req proto.Message, res proto.Message, options *Options) error {
 			}
 
 			if options.Persistent {
+				proxiesMutex.Lock()
 				proxies[instance.Provider] = clientProxy
+				proxiesMutex.Unlock()
 			}
 
 			proxy = clientProxy
@@ -134,6 +141,9 @@ func Invoke(req proto.Message, res proto.Message, options *Options) error {
 }
 
 func ClosePersistentConns() (errs []error) {
+	proxiesMutex.Lock()
+	defer proxiesMutex.Unlock()
+
 	for provider, proxy := range proxies {
 		if err := proxy.Close(); err != nil {
 			errs = append(errs, err)
