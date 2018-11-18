@@ -66,12 +66,18 @@ func Invoke(req proto.Message, res proto.Message, options *Options) error {
 			matches := 0
 		loop:
 			for _, localTag := range options.Tags {
-				for _, remoteTag := range instance.Tags {
-					if localTag == remoteTag {
+				for _, remoteTag := range append([]string{
+					instance.Metadata.OS,
+					instance.Metadata.Arch,
+					instance.Metadata.Host,
+					instance.Metadata.Lang,
+				}, instance.Tags[:]...) {
+					if remoteTag == localTag {
 						matches++
 						if !options.StrictMatch {
 							break loop
 						}
+						continue loop
 					}
 				}
 			}
