@@ -1,7 +1,7 @@
 package main
 
 import (
-	"./bonjour"
+	"github.com/t0rr3sp3dr0/middleair/bonjour"
 )
 
 func main() {
