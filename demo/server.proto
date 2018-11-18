@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package main;
+
+message RemoteShellRequest {
+    string name = 1;
+    repeated string args = 2;
+
+    bytes stdin = 3;
+}
+
+message RemoteShellResponse {
+    int32 exitCode = 1;
+
+    bytes stdout = 2;
+    bytes stderr = 3;
+}
+
+message TextToSpeechRequest {
+    string message = 1;
+}
+
+message TextToSpeechResponse {
+}
