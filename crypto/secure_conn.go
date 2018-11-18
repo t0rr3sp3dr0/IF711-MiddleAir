@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"../util"
+	"github.com/t0rr3sp3dr0/middleair/util"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/packet"
 	_ "golang.org/x/crypto/ripemd160"

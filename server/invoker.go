@@ -5,10 +5,10 @@ import (
 	"log"
 	"reflect"
 
-	"../bonjour"
-	model "../proto"
-	"../util"
 	"github.com/golang/protobuf/proto"
+	"github.com/t0rr3sp3dr0/middleair/bonjour"
+	model "github.com/t0rr3sp3dr0/middleair/proto"
+	"github.com/t0rr3sp3dr0/middleair/util"
 )
 
 type Invoker struct {

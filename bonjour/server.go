@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	model "../proto"
-	"../util"
 	"github.com/golang/protobuf/proto"
+	model "github.com/t0rr3sp3dr0/middleair/proto"
+	"github.com/t0rr3sp3dr0/middleair/util"
 )
 
 var (

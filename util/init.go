@@ -4,8 +4,8 @@ import (
 	"errors"
 	"reflect"
 
-	model "../proto"
 	"github.com/golang/protobuf/proto"
+	model "github.com/t0rr3sp3dr0/middleair/proto"
 )
 
 var (

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 
-	"../crypto"
-	"../util"
+	"github.com/t0rr3sp3dr0/middleair/crypto"
+	"github.com/t0rr3sp3dr0/middleair/util"
 )
 
 type ClientRequestHandler struct {

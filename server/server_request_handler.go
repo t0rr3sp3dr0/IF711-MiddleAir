@@ -6,10 +6,10 @@ import (
 	"net"
 	"sync"
 
-	"../crypto"
-	model "../proto"
-	"../util"
 	"github.com/golang/protobuf/proto"
+	"github.com/t0rr3sp3dr0/middleair/crypto"
+	model "github.com/t0rr3sp3dr0/middleair/proto"
+	"github.com/t0rr3sp3dr0/middleair/util"
 )
 
 var (

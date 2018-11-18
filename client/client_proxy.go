@@ -4,9 +4,9 @@ import (
 	"log"
 	"reflect"
 
-	"../bonjour"
-	"../util"
 	"github.com/golang/protobuf/proto"
+	"github.com/t0rr3sp3dr0/middleair/bonjour"
+	"github.com/t0rr3sp3dr0/middleair/util"
 )
 
 var (

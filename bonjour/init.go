@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	model "../proto"
+	model "github.com/t0rr3sp3dr0/middleair/proto"
 )
 
 const (
