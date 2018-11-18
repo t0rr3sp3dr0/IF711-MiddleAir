@@ -1,7 +1,6 @@
 package client
 
 import (
-	"log"
 	"reflect"
 	"sync"
 
@@ -107,7 +106,9 @@ func Invoke(req proto.Message, res proto.Message, options *Options) error {
 				Credentials: options.Credentials,
 			})
 			if err != nil {
-				log.Println(err)
+				if loggingLevel&LogEnabled != LogDisabled {
+					logger.Println(err)
+				}
 				continue
 			}
 
@@ -124,7 +125,9 @@ func Invoke(req proto.Message, res proto.Message, options *Options) error {
 		}
 
 		if err := proxy.Invoke(req, res); err != nil {
-			log.Println(err)
+			if loggingLevel&LogEnabled != LogDisabled {
+				logger.Println(err)
+			}
 			continue
 		}
 

@@ -63,7 +63,7 @@ func init() {
 	c := func(addr net.Addr, announcement *model.ServiceAnnouncement) {
 		host := strings.Split(addr.String(), ":")[0]
 		b := host == s.Provider.Host
-		if (b && loggingLevel&LogLocalhost != 0) || (!b && loggingLevel&LogOthers != 0) {
+		if (b && loggingLevel&LogLocalhost != LogDisabled) || (!b && loggingLevel&LogOthers != LogDisabled) {
 			logger.Println(addr, announcement)
 		}
 

@@ -2,7 +2,6 @@ package server
 
 import (
 	"io"
-	"log"
 	"reflect"
 
 	"github.com/golang/protobuf/proto"
@@ -62,7 +61,9 @@ func (e *Invoker) Loop() error {
 			bonjour.UnregisterService(service)
 		}
 		if err := e.srh.Close(); err != nil {
-			log.Println(err)
+			if loggingLevel&LogEnabled != LogDisabled {
+				logger.Println(err)
+			}
 		}
 
 		e.sp = nil
@@ -115,7 +116,6 @@ func (e *Invoker) Loop() error {
 			e.srh.handleBadRequest(err)
 			continue
 		}
-		log.Println(message, "\t", innerMessage)
 
 		response, err := service.Handle(innerMessage)
 		if err != nil {
