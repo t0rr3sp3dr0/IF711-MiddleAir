@@ -112,13 +112,13 @@ func Invoke(req proto.Message, res proto.Message, options *Options) error {
 
 			proxy = clientProxy
 		}
+		if !options.Persistent {
+			defer proxy.Close()
+		}
 
 		if err := proxy.Invoke(req, res); err != nil {
 			log.Println(err)
 			continue
-		}
-		if !options.Persistent {
-			proxy.requestor.crh.Close()
 		}
 
 		if !options.Broadcast {
