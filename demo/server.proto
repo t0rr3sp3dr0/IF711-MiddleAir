@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package main;
 
+message Request {
+}
+
+message Response {
+}
+
 message RemoteShellRequest {
     string name = 1;
     repeated string args = 2;

@@ -16,6 +16,12 @@ type Server struct{}
 func (e *Server) Registry() []*server.Service {
 	services := []*server.Service{
 		&server.Service{
+			Interface: reflect.TypeOf((*Request)(nil)),
+			Handle: func(message proto.Message) (proto.Message, error) {
+				return &Response{}, nil
+			},
+		},
+		&server.Service{
 			Interface: reflect.TypeOf((*RemoteShellRequest)(nil)),
 			Handle:    e.remoteShell,
 		},
