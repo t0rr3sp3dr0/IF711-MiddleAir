@@ -7,14 +7,17 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/binary"
+	"errors"
 	"io"
 	"math"
 	"net"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/t0rr3sp3dr0/middleair/util"
 	"golang.org/x/crypto/openpgp"
+	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/packet"
 	_ "golang.org/x/crypto/ripemd160"
 )
@@ -37,37 +40,101 @@ func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 		Conn: conn,
 	}
 
-	key, err := rsa.GenerateKey(rand.Reader, 4096)
+	pub, priv, err := func() (*packet.PublicKey, *packet.PrivateKey, error) {
+		pubFile, err := os.Open(os.Getenv("MIDDLEAIR_PUBKEY"))
+		if err != nil {
+			return nil, nil, err
+		}
+		defer pubFile.Close()
+
+		privFile, err := os.Open(os.Getenv("MIDDLEAIR_PRIVKEY"))
+		if err != nil {
+			return nil, nil, err
+		}
+		defer privFile.Close()
+
+		pubBlock, err := armor.Decode(pubFile)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		privBlock, err := armor.Decode(privFile)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		if pubBlock.Type != openpgp.PublicKeyType {
+			return nil, nil, errors.New("Invalid Public Key File")
+		}
+
+		if privBlock.Type != openpgp.PrivateKeyType {
+			return nil, nil, errors.New("Invalid Private Key File")
+		}
+
+		pubPacket, err := packet.NewReader(pubBlock.Body).Next()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		privPacket, err := packet.NewReader(privBlock.Body).Next()
+		if err != nil {
+			return nil, nil, err
+		}
+
+		pubKey, ok := pubPacket.(*packet.PublicKey)
+		if !ok {
+			return nil, nil, errors.New("Invalid Public Key")
+		}
+
+		privKey, ok := privPacket.(*packet.PrivateKey)
+		if !ok {
+			return nil, nil, errors.New("Invalid Private Key")
+		}
+
+		return pubKey, privKey, nil
+	}()
+
+	key, err := func() (*rsa.PrivateKey, error) {
+		if err == nil {
+			return nil, nil
+		}
+		return rsa.GenerateKey(rand.Reader, 4096)
+	}()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	publicKeyBuf := bytes.NewBuffer(nil)
-	publicKey := packet.NewRSAPublicKey(time.Now(), &key.PublicKey)
+	publicKey := func() *packet.PublicKey {
+		if pub != nil {
+			return pub
+		}
+		return packet.NewRSAPublicKey(time.Now(), &key.PublicKey)
+	}()
 	if err := publicKey.Serialize(publicKeyBuf); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	if _, err := w.WriteData(publicKeyBuf.Bytes()); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	pk, err := w.ReadData()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	pkt, err := packet.NewReader(bytes.NewBuffer(pk)).Next()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	e.publicKey = pkt.(*packet.PublicKey)
 
-	e.privateKey = packet.NewRSAPrivateKey(time.Now(), key)
+	e.privateKey = func() *packet.PrivateKey {
+		if pub != nil {
+			return priv
+		}
+		return packet.NewRSAPrivateKey(time.Now(), key)
+	}()
 
 	e.publicEntities = []*openpgp.Entity{
 		newEntity(e.publicKey, nil),
@@ -79,95 +146,78 @@ func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 
 	e.sharedKey = make([]byte, 512)
 	if _, err := rand.Read(e.sharedKey); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	sharedKeyBuf := bytes.NewBuffer(nil)
 	postCompressed, err := gzip.NewWriterLevel(sharedKeyBuf, gzip.BestCompression)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePostCompressed := &sync.Once{}
 	defer oncePostCompressed.Do(func() {
 		if err := postCompressed.Close(); err != nil {
-			panic(err)
 		}
 	})
 	plaintext, err := openpgp.Encrypt(postCompressed, e.publicEntities, nil, nil, nil)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePlaintext := &sync.Once{}
 	defer oncePostCompressed.Do(func() {
 		if err := plaintext.Close(); err != nil {
-			panic(err)
 		}
 	})
 	preCompressed, err := gzip.NewWriterLevel(plaintext, gzip.BestCompression)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePreCompressed := &sync.Once{}
 	defer oncePostCompressed.Do(func() {
 		if err := preCompressed.Close(); err != nil {
-			panic(err)
 		}
 	})
 	if _, err := io.Copy(preCompressed, bytes.NewReader(e.sharedKey)); err != nil {
-		panic(err)
 		return nil, err
 	}
 	if err := preCompressed.Close(); err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePreCompressed.Do(func() {})
 	if err := plaintext.Close(); err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePlaintext.Do(func() {})
 	if err := postCompressed.Close(); err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePostCompressed.Do(func() {})
 
 	if _, err := w.WriteData(sharedKeyBuf.Bytes()); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	sk, err := w.ReadData()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	preDecompressed, err := gzip.NewReader(bytes.NewReader(sk))
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	defer preDecompressed.Close()
 	md, err := openpgp.ReadMessage(preDecompressed, e.privateEntities, nil, nil)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	postDecompressed, err := gzip.NewReader(md.UnverifiedBody)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	defer postDecompressed.Close()
 	skBuf := bytes.NewBuffer(nil)
 	if _, err := io.Copy(skBuf, postDecompressed); err != nil {
-		panic(err)
 		return nil, err
 	}
 
@@ -221,7 +271,6 @@ func newEntity(pubKey *packet.PublicKey, privKey *packet.PrivateKey) *openpgp.En
 					PubKeyAlgo:                packet.PubKeyAlgoRSA,
 					Hash:                      config.Hash(),
 					CreationTime:              config.Now(),
-					PreferredHash:             []uint8{8}, // SHA-256
 					IssuerKeyId:               &pubKey.KeyId,
 					FlagsValid:                true,
 					FlagEncryptCommunications: true,
@@ -272,7 +321,6 @@ func (e *SecureConn) WriteData(data []byte) (int, error) {
 	oncePostCompressed := &sync.Once{}
 	defer oncePostCompressed.Do(func() {
 		if err := postCompressed.Close(); err != nil {
-			panic(err)
 		}
 	})
 	plaintext, err := openpgp.SymmetricallyEncrypt(postCompressed, e.sharedKey, nil, nil)
@@ -282,7 +330,6 @@ func (e *SecureConn) WriteData(data []byte) (int, error) {
 	oncePlaintext := &sync.Once{}
 	defer oncePlaintext.Do(func() {
 		if err := plaintext.Close(); err != nil {
-			panic(err)
 		}
 	})
 	preCompressed, err := gzip.NewWriterLevel(plaintext, gzip.BestSpeed)
@@ -292,7 +339,6 @@ func (e *SecureConn) WriteData(data []byte) (int, error) {
 	oncePreCompressed := &sync.Once{}
 	defer oncePostCompressed.Do(func() {
 		if err := preCompressed.Close(); err != nil {
-			panic(err)
 		}
 	})
 	if _, err := io.Copy(preCompressed, bytes.NewBuffer(data)); err != nil {
