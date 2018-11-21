@@ -39,30 +39,25 @@ func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 
 	key, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	publicKeyBuf := bytes.NewBuffer(nil)
 	publicKey := packet.NewRSAPublicKey(time.Now(), &key.PublicKey)
 	if err := publicKey.Serialize(publicKeyBuf); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	if _, err := w.WriteData(publicKeyBuf.Bytes()); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	pk, err := w.ReadData()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	pkt, err := packet.NewReader(bytes.NewBuffer(pk)).Next()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	e.publicKey = pkt.(*packet.PublicKey)
@@ -79,14 +74,12 @@ func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 
 	e.sharedKey = make([]byte, 512)
 	if _, err := rand.Read(e.sharedKey); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	sharedKeyBuf := bytes.NewBuffer(nil)
 	postCompressed, err := gzip.NewWriterLevel(sharedKeyBuf, gzip.BestCompression)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePostCompressed := &sync.Once{}
@@ -97,7 +90,6 @@ func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 	})
 	plaintext, err := openpgp.Encrypt(postCompressed, e.publicEntities, nil, nil, nil)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePlaintext := &sync.Once{}
@@ -108,7 +100,6 @@ func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 	})
 	preCompressed, err := gzip.NewWriterLevel(plaintext, gzip.BestCompression)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePreCompressed := &sync.Once{}
@@ -118,56 +109,46 @@ func NewSecureConn(conn net.Conn) (*SecureConn, error) {
 		}
 	})
 	if _, err := io.Copy(preCompressed, bytes.NewReader(e.sharedKey)); err != nil {
-		panic(err)
 		return nil, err
 	}
 	if err := preCompressed.Close(); err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePreCompressed.Do(func() {})
 	if err := plaintext.Close(); err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePlaintext.Do(func() {})
 	if err := postCompressed.Close(); err != nil {
-		panic(err)
 		return nil, err
 	}
 	oncePostCompressed.Do(func() {})
 
 	if _, err := w.WriteData(sharedKeyBuf.Bytes()); err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	sk, err := w.ReadData()
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 
 	preDecompressed, err := gzip.NewReader(bytes.NewReader(sk))
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	defer preDecompressed.Close()
 	md, err := openpgp.ReadMessage(preDecompressed, e.privateEntities, nil, nil)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	postDecompressed, err := gzip.NewReader(md.UnverifiedBody)
 	if err != nil {
-		panic(err)
 		return nil, err
 	}
 	defer postDecompressed.Close()
 	skBuf := bytes.NewBuffer(nil)
 	if _, err := io.Copy(skBuf, postDecompressed); err != nil {
-		panic(err)
 		return nil, err
 	}
 
